@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -12,9 +14,15 @@ import (
 	"golang.org/x/net/html/charset"
 )
 
+const DATE_FORMAT string = "20060102150405"
+
 func main() {
-	for i := 0; i < 25; i++ {
-		fmt.Println(scrape())
+	executeTime := time.Now().Format(DATE_FORMAT)
+	for i := 1; i <= 25; i++ {
+		url, title := scrape()
+		fmt.Println(title)
+
+		download(url, fmt.Sprintf("%03d", i), executeTime)
 		time.Sleep(time.Second * 1)
 	}
 }
@@ -39,4 +47,17 @@ func scrape() (string, string) {
 	text := doc.Find("a.boke-text > div").Text()
 
 	return "https:" + src, text[5:]
+}
+
+func download(url string, number string, executeTime string) {
+
+	res, _ := http.Get(url)
+	defer res.Body.Close()
+
+	dir := fmt.Sprintf("./resource/%s", executeTime)
+	os.Mkdir(dir, 0777)
+	file, _ := os.Create(fmt.Sprintf("%s/%s.jpg", dir, number))
+	defer file.Close()
+
+	io.Copy(file, res.Body)
 }
