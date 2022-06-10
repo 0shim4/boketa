@@ -23,11 +23,17 @@ const DATE_FORMAT string = "20060102150405"
 func main() {
 	dir := fmt.Sprintf("./resource/%s", time.Now().Format(DATE_FORMAT))
 	os.Mkdir(dir, 0777)
+
+	backgroundFile, _ := os.Open("./resource/background.png")
+	defer backgroundFile.Close()
+	backgroundImg, _, _ := image.Decode(backgroundFile)
+	png.Encode(new(bytes.Buffer), backgroundImg) // NOTE: pngとして識別されないためエンコード
+
 	for i := 1; i <= 25; i++ {
 		url, title := scrape()
 		fmt.Println(title)
 
-		go makeImageForMovie(download(url, fmt.Sprintf("%03d", i), dir))
+		go makeImageForMovie(download(url, fmt.Sprintf("%03d", i), dir), backgroundImg)
 		time.Sleep(time.Second * 1)
 	}
 }
@@ -68,14 +74,10 @@ func download(url string, number string, dir string) (path string) {
 	return path
 }
 
-func makeImageForMovie(path string) {
-	backgroundFile, _ := os.Open("./resource/background.png") // TODO: 毎回ファイルを開かず1回で済ませる
+func makeImageForMovie(path string, backgroundImg image.Image) {
 	inputFile, _ := os.Open(path)
-	defer backgroundFile.Close()
 	defer inputFile.Close()
 
-	backgroundImg, _, _ := image.Decode(backgroundFile)
-	png.Encode(new(bytes.Buffer), backgroundImg) // NOTE: pngとして識別されないためエンコード
 	inputImg, _, _ := image.Decode(inputFile)
 
 	startPointLogo := image.Point{(backgroundImg.Bounds().Dx() - inputImg.Bounds().Dx()) / 2, 0}
