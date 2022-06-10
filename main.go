@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"image"
-	"image/color"
 	"image/draw"
 	"image/jpeg"
+	"image/png"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -27,7 +27,7 @@ func main() {
 		url, title := scrape()
 		fmt.Println(title)
 
-		go extendImageBottom(download(url, fmt.Sprintf("%03d", i), dir))
+		go makeImageForMovie(download(url, fmt.Sprintf("%03d", i), dir))
 		time.Sleep(time.Second * 1)
 	}
 }
@@ -68,23 +68,26 @@ func download(url string, number string, dir string) (path string) {
 	return path
 }
 
-func extendImageBottom(path string) {
+func makeImageForMovie(path string) {
+	backgroundFile, _ := os.Open("./resource/background.png") // TODO: 毎回ファイルを開かず1回で済ませる
 	inputFile, _ := os.Open(path)
+	defer backgroundFile.Close()
 	defer inputFile.Close()
 
-	img, _, _ := image.Decode(inputFile)
+	backgroundImg, _, _ := image.Decode(backgroundFile)
+	png.Encode(new(bytes.Buffer), backgroundImg) // NOTE: pngとして識別されないためエンコード
+	inputImg, _, _ := image.Decode(inputFile)
+
+	startPointLogo := image.Point{(backgroundImg.Bounds().Dx() - inputImg.Bounds().Dx()) / 2, 0}
+
+	logoRectangle := image.Rectangle{startPointLogo, startPointLogo.Add(inputImg.Bounds().Size())}
+	originRectangle := image.Rectangle{image.Point{0, 0}, backgroundImg.Bounds().Size()}
+
+	rgba := image.NewRGBA(originRectangle)
+	draw.Draw(rgba, originRectangle, backgroundImg, image.Point{0, 0}, draw.Src)
+	draw.Draw(rgba, logoRectangle, inputImg, image.Point{0, 0}, draw.Over)
 
 	outputFile, _ := os.Create(path)
 	defer outputFile.Close()
-
-	m := image.NewRGBA(image.Rect(0, 0, img.Bounds().Dx(), img.Bounds().Dy()+100))
-	c := color.RGBA{0, 0, 255, 255}
-
-	draw.Draw(m, m.Bounds(), &image.Uniform{c}, image.ZP, draw.Src)
-
-	rct := image.Rectangle{image.Point{0, 0}, m.Bounds().Size()}
-
-	draw.Draw(m, rct, img, image.Point{0, 0}, draw.Src)
-
-	jpeg.Encode(outputFile, m, &jpeg.Options{Quality: 100})
+	jpeg.Encode(outputFile, rgba, nil)
 }
