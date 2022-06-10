@@ -27,7 +27,7 @@ func main() {
 		url, title := scrape()
 		fmt.Println(title)
 
-		extendImageBottom(download(url, fmt.Sprintf("%03d", i), dir))
+		go extendImageBottom(download(url, fmt.Sprintf("%03d", i), dir))
 		time.Sleep(time.Second * 1)
 	}
 }
